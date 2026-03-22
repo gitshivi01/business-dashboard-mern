@@ -1,76 +1,62 @@
+import { getProducts, deleteProduct } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { getCurrentUser, logoutUser } from "../services/api";
 import "../styles/dashboard.css";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie
-} from "recharts";
 
 function Dashboard() {
   const navigate = useNavigate();
   const user = getCurrentUser() || {};
-
+ 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ FETCH PRODUCTS (runs once)
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        const res = await axios.get("http://localhost:5002/api/products", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-
-        setProducts(res.data || []);
-      } catch (err) {
-        console.error("Fetch error:", err);
+  // ✅ FETCH PRODUCTS
+ useEffect(() => {
+  const fetchProducts = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
         navigate("/login", { replace: true });
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
+      const data = await getProducts();
+      setProducts(data || []);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      navigate("/login", { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchProducts();
+}, [navigate]);
 
-    fetchProducts();
-  }, []); // ❗ empty dependency = run once only
 
+  // ✅ LOGOUT
   const handleLogout = () => {
     logoutUser();
     navigate("/login", { replace: true });
   };
 
+  // ✅ DELETE PRODUCT
   const handleDelete = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
+  try {
+    await deleteProduct(id);
+    setProducts((prev) => prev.filter((p) => p._id !== id));
+  } catch (err) {
+    console.error("Delete error:", err);
+  }
+};
 
-      await axios.delete(`http://localhost:5002/api/products/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setProducts((prev) => prev.filter((p) => p._id !== id));
-    } catch (err) {
-      console.error("Delete error:", err);
-    }
-  };
-
-  // KPI
+  // ✅ KPI CALCULATIONS
   const totalProducts = products.length;
-  const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+
+  const totalStock = products.reduce(
+    (sum, p) => sum + (p.stock || 0),
+    0
+  );
+
   const totalValue = products.reduce(
     (sum, p) => sum + (p.price || 0) * (p.stock || 0),
     0
@@ -78,85 +64,69 @@ function Dashboard() {
 
   const categories = [...new Set(products.map((p) => p.category))];
 
-  const categoryData = categories.map((cat) => {
-    const items = products.filter((p) => p.category === cat);
-    return {
-      category: cat,
-      stock: items.reduce((s, i) => s + (i.stock || 0), 0),
-      value: items.reduce((s, i) => s + (i.price || 0) * (i.stock || 0), 0)
-    };
-  });
-
-  const topProducts = [...products]
-    .sort((a, b) => b.price * b.stock - a.price * a.stock)
-    .slice(0, 3);
-
-  if (loading) return <h2 style={{ color: "white" }}>Loading...</h2>;
+  // ⏳ Loading state
+  if (loading) {
+    return (
+      <div className="dashboard-container">
+        <h2 style={{ textAlign: "center" }}>Loading...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
+
+      {/* HEADER */}
       <div className="dashboard-header">
-        <h1>📊 Business Analytics Dashboard</h1>
+        <h1>📊 Business Dashboard</h1>
         <button className="logout-btn" onClick={handleLogout}>
           Logout
         </button>
       </div>
 
+      {/* USER CARD */}
       <div className="user-card">
         <h2>Welcome, {user.name} 👋</h2>
         <p>{user.email}</p>
       </div>
 
+      {/* KPI SECTION */}
       <div className="kpi-grid">
         <div className="kpi-card">
           <h3>Total Products</h3>
           <h2>{totalProducts}</h2>
         </div>
+
         <div className="kpi-card">
           <h3>Total Stock</h3>
           <h2>{totalStock}</h2>
         </div>
+
         <div className="kpi-card">
           <h3>Inventory Value</h3>
           <h2>₹ {totalValue}</h2>
         </div>
+
         <div className="kpi-card">
           <h3>Categories</h3>
           <h2>{categories.length}</h2>
         </div>
       </div>
 
-      {products.length > 0 && (
-        <>
-          <h2>Category Analytics</h2>
-
-          <BarChart width={500} height={250} data={categoryData}>
-            <XAxis dataKey="category" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="stock" />
-          </BarChart>
-
-          <PieChart width={400} height={250}>
-            <Pie
-              data={categoryData}
-              dataKey="value"
-              nameKey="category"
-              outerRadius={80}
-            />
-          </PieChart>
-        </>
-      )}
-
+      {/* TOP PRODUCTS */}
       <h2>Top Products</h2>
       <ul>
-        {topProducts.map((p) => (
-          <li key={p._id}>
-            {p.name} — ₹{p.price * p.stock}
-          </li>
-        ))}
+        {[...products]
+          .sort((a, b) => b.price * b.stock - a.price * a.stock)
+          .slice(0, 3)
+          .map((p) => (
+            <li key={p._id}>
+              {p.name} — ₹{p.price * p.stock}
+            </li>
+          ))}
       </ul>
 
+      {/* TABLE */} 
       <div className="table-container">
         <h2>All Products</h2>
         <table>
@@ -170,6 +140,7 @@ function Dashboard() {
               <th>Action</th>
             </tr>
           </thead>
+
           <tbody>
             {products.map((p) => (
               <tr key={p._id}>
@@ -191,8 +162,10 @@ function Dashboard() {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }
 
 export default Dashboard;
+   

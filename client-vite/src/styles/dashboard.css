@@ -41,7 +41,7 @@
 }
 
 .kpi-card {
-  background: white;
+  background: rgb(228, 207, 207);
   padding: 20px;
   border-radius: 10px;
   text-align: center;
@@ -67,6 +67,7 @@
 .table-container {
   margin-top: 30px;
   overflow-x: auto;
+  background-color: rgb(215, 206, 206);
 }
 
 table {
@@ -82,7 +83,7 @@ th, td {
 
 th {
   text-align: left;
-  background: #f8fafc;
+  background: #e9ecf0;
 }
 
 .delete-btn {

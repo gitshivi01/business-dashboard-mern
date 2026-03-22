@@ -9,7 +9,7 @@ const {
   deleteProduct
 } = require('../controllers/productController');
 
-// All routes require authentication
+// 👇 MUST be here BEFORE routes
 router.use(authMiddleware);
 
 router.get('/', getAllProducts);
